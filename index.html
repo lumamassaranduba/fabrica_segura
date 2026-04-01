@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fábrica Segura</title>
+    <!-- Carrega o Tailwind CSS da Internet -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carrega o React da Internet -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Carrega o Babel para compilar o código na hora -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        .animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // --- ÍCONES (Usando Emojis para não precisar instalar o lucide-react) ---
+        const UserIcon = () => <span className="text-2xl leading-none">👤</span>;
+        const HardHatIcon = () => <span className="text-2xl leading-none">👷</span>;
+        const BriefcaseIcon = () => <span className="text-2xl leading-none">💼</span>;
+        const MessageIcon = () => <span className="text-sm leading-none">💬</span>;
+        const ShieldIcon = () => <span className="text-4xl leading-none">🛡️</span>;
+        const ShieldSmallIcon = () => <span className="text-xl leading-none">🛡️</span>;
+        const RotateIcon = () => <span className="text-xl leading-none">🔄</span>;
+        const TrophyIcon = () => <span className="text-6xl leading-none">🏆</span>;
+        const ArrowRightCircleIcon = () => <span className="text-6xl leading-none">⏭️</span>;
+        const CheckIcon = () => <span className="text-6xl leading-none">✅</span>;
+        const XIcon = () => <span className="text-6xl leading-none">❌</span>;
+        const ArrowUpIcon = () => <span className="text-2xl leading-none">⬆️</span>;
+        const ArrowDownIcon = () => <span className="text-2xl leading-none">⬇️</span>;
+        const ArrowLeftIcon = () => <span className="text-2xl leading-none">⬅️</span>;
+        const ArrowRightIcon = () => <span className="text-2xl leading-none">➡️</span>;
+
+        // --- CONFIGURAÇÕES GERAIS ---
+        const GRID_W = 14;
+        const GRID_H = 10;
+        const TILE_SIZE = 50;
+
+        // ==========================================
+        // DADOS DA FASE 1: Chegada e Produção Básica
+        // ==========================================
+        const PHASE_1_NPCS = [
+            { id: 1, x: 5, y: 4, name: "Roberto", role: "Gerente", icon: BriefcaseIcon, color: "text-blue-500", bg: "bg-blue-100", message: "Bom dia! Sou o Gerente da unidade. A nossa maior meta hoje não é a produção, é você voltar para casa em segurança. Fique de olho nos seus colegas no trajeto e na fábrica!", quiz: null, completed: false },
+            { id: 2, x: 12, y: 3, name: "João", role: "Soldador", icon: HardHatIcon, color: "text-yellow-500", bg: "bg-yellow-100", message: "E aí, beleza? Vou começar a soldar essa placa de circuito agora mesmo e a máquina já está quente...", quiz: { question: "Qual equipamento de proteção (EPI) eu devo usar para os olhos nesta solda?", options: [ { text: "Óculos de sol comuns para diminuir a luz brilhante.", isCorrect: false, feedback: "Errado! Óculos de sol não protegem contra as faíscas ou a radiação UV intensa da solda." }, { text: "Máscara de solda ou óculos com lente de proteção adequada.", isCorrect: true, feedback: "Exato! Protege contra a luminosidade intensa, raios UV e respingos de metal quente." }, { text: "Nenhum, é só um pontinho de solda rápido.", isCorrect: false, feedback: "Muito perigoso! Um respingo ou a luz forte podem causar danos permanentes na visão em um piscar de olhos." } ] }, completed: false },
+            { id: 3, x: 8, y: 7, name: "Maria", role: "Técnica de Limpeza", icon: UserIcon, color: "text-purple-500", bg: "bg-purple-100", message: "Oi! Preciso limpar as engrenagens daquela máquina com um solvente químico bem forte.", quiz: { question: "O que eu devo colocar nas mãos para me proteger?", options: [ { text: "Luvas de nitrila/borracha específicas para produtos químicos.", isCorrect: true, feedback: "Perfeito! Elas evitam queimaduras químicas e impedem que a pele absorva toxinas." }, { text: "Luvas de lã ou tecido para não sujar as mãos.", isCorrect: false, feedback: "Errado! O tecido vai absorver o solvente químico e manter o produto em contato com a pele, piorando a situação." } ] }, completed: false },
+            { id: 4, x: 1, y: 2, name: "Ana", role: "Pedestre (Trajeto)", icon: UserIcon, color: "text-pink-500", bg: "bg-pink-100", message: "Bom dia! Quase cheguei atrasada hoje. O ônibus demorou e eu tive que correr da avenida até aqui no portão da empresa.", quiz: { question: "Ao descer do ônibus e precisar atravessar a avenida movimentada, qual a atitude correta?", options: [ { text: "Atravessar correndo pela frente do ônibus para dar tempo.", isCorrect: false, feedback: "Muito Perigoso! O motorista do ônibus e os carros que vêm atrás não conseguem te ver. Risco alto de atropelamento." }, { text: "Aguardar na calçada, procurar a faixa de pedestres e esperar o sinal fechar para os carros.", isCorrect: true, feedback: "Perfeito! Acidentes de trajeto são graves e equiparam-se a acidentes de trabalho. A pressa não vale a sua vida." } ] }, completed: false },
+            { id: 5, x: 2, y: 8, name: "Pedro", role: "Motociclista (Trajeto)", icon: UserIcon, color: "text-orange-500", bg: "bg-orange-100", message: "E aí, beleza? Peguei uma chuva forte no caminho de casa pra cá, a pista estava um sabão pra entrar no estacionamento!", quiz: { question: "Qual a regra de ouro para pilotar moto em dias de chuva no trajeto para o trabalho?", options: [ { text: "Reduzir a velocidade, evitar frenagens bruscas e aumentar a distância do veículo da frente.", isCorrect: true, feedback: "Excelente! A pista molhada reduz a aderência dos pneus. Direção defensiva evita acidentes de trajeto!" }, { text: "Acelerar para chegar logo e não se molhar tanto.", isCorrect: false, feedback: "Péssima ideia! A pressa e a pista molhada são a combinação perfeita para derrapagens e quedas graves." } ] }, completed: false }
+        ];
+
+        const PHASE_1_OBSTACLES = [
+            {x: 4, y: 0}, {x: 4, y: 1}, {x: 4, y: 2}, {x: 4, y: 3}, 
+            {x: 4, y: 6}, {x: 4, y: 7}, {x: 4, y: 8}, {x: 4, y: 9},
+            {x: 11, y: 2}, {x: 12, y: 2}, {x: 13, y: 2}, 
+            {x: 7, y: 6}, {x: 8, y: 6}, {x: 9, y: 6}, 
+        ];
+
+        const PHASE_1_BG = (
+            <React.Fragment>
+                <div className="absolute top-0 left-0 h-full bg-slate-800 border-r-4 border-dashed border-yellow-500" style={{ width: '200px' }}>
+                    <span className="absolute bottom-2 left-2 text-slate-500 font-bold text-xs opacity-50">RUA / ESTACIONAMENTO</span>
+                </div>
+                <span className="absolute bottom-2 right-2 text-slate-500 font-bold text-xs opacity-50">FÁBRICA (SETOR A)</span>
+            </React.Fragment>
+        );
+
+        // ==========================================
+        // DADOS DA FASE 2: Almoxarifado e Refeitório
+        // ==========================================
+        const PHASE_2_NPCS = [
+            { id: 1, x: 1, y: 1, name: "Roberto", role: "Gerente", icon: BriefcaseIcon, color: "text-blue-500", bg: "bg-blue-100", message: "Muito bem! Você garantiu a segurança no Setor A. Agora, verifique o Almoxarifado e a área do Refeitório. Atenção redobrada com as empilhadeiras e o piso molhado!", quiz: null, completed: false },
+            { id: 2, x: 4, y: 7, name: "Carlos", role: "Almoxarife", icon: HardHatIcon, color: "text-green-500", bg: "bg-green-100", message: "Ufa! Essa caixa cheia de peças de metal está pesada demais. Preciso levá-la para aquela prateleira alta.", quiz: { question: "Qual a postura correta que o Carlos deve usar para levantar essa caixa pesada do chão?", options: [ { text: "Curvar bem as costas para a frente e puxar a caixa com a força dos braços.", isCorrect: false, feedback: "Isso é um passaporte direto para uma lesão grave na lombar (hérnia de disco)!" }, { text: "Dobrar os joelhos, manter a coluna reta, abraçar a caixa e levantar usando a força das pernas.", isCorrect: true, feedback: "Correto! As pernas têm os músculos mais fortes do corpo. Isso protege a coluna." }, { text: "Puxar a caixa arrastando pelo chão para não precisar levantar.", isCorrect: false, feedback: "Embora pareça fácil, o atrito pode fazer ele dar um tranco nas costas e causar uma lesão, além de estragar a caixa." } ] }, completed: false },
+            { id: 3, x: 10, y: 2, name: "Luiza", role: "Cozinheira", icon: UserIcon, color: "text-red-500", bg: "bg-red-100", message: "Cuidado aí! Acabei de lavar o chão do refeitório e ainda está bem molhado e escorregadio perto do balcão.", quiz: { question: "O que a Luiza DEVE fazer imediatamente após lavar um piso que ficou escorregadio em área de circulação?", options: [ { text: "Avisar apenas quem passar por perto gritando 'cuidado'.", isCorrect: false, feedback: "Errado! Nem todo mundo vai ouvir ou prestar atenção. Alguém desatento pode escorregar." }, { text: "Colocar placas de sinalização amarelas de 'Piso Molhado' visíveis no local.", isCorrect: true, feedback: "Exatamente! A sinalização visual previne escorregões, que são uma das maiores causas de acidentes dentro de empresas." } ] }, completed: false },
+            { id: 4, x: 12, y: 8, name: "Fernando", role: "Operador de Empilhadeira", icon: HardHatIcon, color: "text-indigo-500", bg: "bg-indigo-100", message: "Preciso manobrar a empilhadeira de ré agora, mas tem uns paletes altos bloqueando minha visão pelo retrovisor...", quiz: { question: "O que o operador deve fazer se a carga ou obstáculos bloquearem sua visão ao manobrar de ré?", options: [ { text: "Ir dando ré devagarinho e buzinando sem parar, torcendo pra não ter ninguém.", isCorrect: false, feedback: "Muito arriscado! A buzina alerta, mas se alguém não ouvir ou não conseguir sair a tempo, o atropelamento acontece." }, { text: "Pedir a ajuda de um colega (sinaleiro) para orientar a manobra com segurança.", isCorrect: true, feedback: "Perfeito! Se não há visão, não há manobra segura sozinho. O sinaleiro é fundamental." } ] }, completed: false }
+        ];
+
+        const PHASE_2_OBSTACLES = [
+            {x: 2, y: 4}, {x: 2, y: 5}, {x: 2, y: 6}, 
+            {x: 5, y: 4}, {x: 5, y: 5}, {x: 5, y: 6}, 
+            {x: 9, y: 3}, {x: 10, y: 3}, {x: 11, y: 3}, {x: 12, y: 3},
+            {x: 11, y: 7}, {x: 11, y: 8},
+        ];
+
+        const PHASE_2_BG = (
+            <React.Fragment>
+                <div className="absolute top-0 left-0 h-full bg-orange-900/20 border-r-4 border-dashed border-slate-500" style={{ width: '400px' }}>
+                    <span className="absolute bottom-2 left-2 text-slate-500 font-bold text-xs opacity-50">ALMOXARIFADO</span>
+                </div>
+                <div className="absolute top-0 right-0 h-[250px] bg-blue-900/10 border-b-4 border-dashed border-slate-500" style={{ width: '300px', left: '400px' }}>
+                    <span className="absolute top-2 right-2 text-slate-500 font-bold text-xs opacity-50">REFEITÓRIO</span>
+                </div>
+                <span className="absolute bottom-2 right-2 text-slate-500 font-bold text-xs opacity-50">PÁTIO DE CARGAS</span>
+            </React.Fragment>
+        );
+
+        function App() {
+            const [gameState, setGameState] = useState('menu');
+            const [currentPhase, setCurrentPhase] = useState(1);
+            const [playerPos, setPlayerPos] = useState({ x: 0, y: 4 });
+            const [facing, setFacing] = useState('right');
+            const [npcs, setNpcs] = useState([]);
+            const [obstacles, setObstacles] = useState([]);
+            
+            const [activeDialog, setActiveDialog] = useState(null);
+            const [quizResult, setQuizResult] = useState(null);
+            const [score, setScore] = useState(0);
+
+            const loadPhase = (phaseNumber) => {
+                if (phaseNumber === 1) {
+                    setNpcs(PHASE_1_NPCS.map(npc => ({ ...npc, completed: false })));
+                    setObstacles(PHASE_1_OBSTACLES);
+                    setPlayerPos({ x: 0, y: 4 });
+                } else if (phaseNumber === 2) {
+                    setNpcs(PHASE_2_NPCS.map(npc => ({ ...npc, completed: false })));
+                    setObstacles(PHASE_2_OBSTACLES);
+                    setPlayerPos({ x: 0, y: 0 });
+                }
+                setFacing('right');
+                setActiveDialog(null);
+                setQuizResult(null);
+            };
+
+            const startGame = () => {
+                setCurrentPhase(1);
+                setScore(0);
+                loadPhase(1);
+                setGameState('playing');
+            };
+
+            const nextPhase = () => {
+                setCurrentPhase(2);
+                loadPhase(2);
+                setGameState('playing');
+            };
+
+            const totalQuizzes = npcs.filter(n => n.quiz).length;
+            const completedQuizzes = npcs.filter(n => n.quiz && n.completed).length;
+            const isPhaseComplete = totalQuizzes > 0 && totalQuizzes === completedQuizzes;
+
+            const isBlocked = (x, y) => {
+                if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return true;
+                if (obstacles.some(obs => obs.x === x && obs.y === y)) return true;
+                if (npcs.some(npc => npc.x === x && npc.y === y)) return true;
+                return false;
+            };
+
+            const movePlayer = useCallback((dx, dy, newFacing) => {
+                if (activeDialog || gameState !== 'playing') return;
+
+                setFacing(newFacing);
+                setPlayerPos(prev => {
+                    const newX = prev.x + dx;
+                    const newY = prev.y + dy;
+                    
+                    const npcInFront = npcs.find(npc => npc.x === newX && npc.y === newY);
+                    if (npcInFront) {
+                        setActiveDialog(npcInFront);
+                        return prev;
+                    }
+
+                    if (!isBlocked(newX, newY)) {
+                        return { x: newX, y: newY };
+                    }
+                    return prev;
+                });
+            }, [npcs, obstacles, activeDialog, gameState]);
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    switch(e.key) {
+                        case 'ArrowUp': case 'w': movePlayer(0, -1, 'up'); break;
+                        case 'ArrowDown': case 's': movePlayer(0, 1, 'down'); break;
+                        case 'ArrowLeft': case 'a': movePlayer(-1, 0, 'left'); break;
+                        case 'ArrowRight': case 'd': movePlayer(1, 0, 'right'); break;
+                        case 'Escape': 
+                            if(activeDialog) { setActiveDialog(null); setQuizResult(null); }
+                            break;
+                        default: break;
+                    }
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [movePlayer, activeDialog]);
+
+            const handleAnswer = (option) => {
+                setQuizResult(option);
+                setNpcs(prev => prev.map(npc => 
+                    npc.id === activeDialog.id ? { ...npc, completed: true } : npc
+                ));
+                if (option.isCorrect) setScore(s => s + 100);
+            };
+
+            const closeDialog = () => {
+                setActiveDialog(null);
+                setQuizResult(null);
+                if (isPhaseComplete) setGameState('phase_transition');
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4 select-none">
+                    
+                    {gameState === 'menu' && (
+                        <div className="bg-slate-800 p-8 rounded-3xl border-2 border-slate-700 shadow-2xl max-w-md w-full text-center space-y-6">
+                            <div className="w-20 h-20 bg-cyan-500/20 rounded-full mx-auto flex items-center justify-center">
+                                <ShieldIcon />
+                            </div>
+                            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
+                                Fábrica Segura
+                            </h1>
+                            <p className="text-slate-400 leading-relaxed">
+                                Ande pela empresa, converse com seus colegas de trabalho e ajude-os a tomar as decisões corretas sobre prevenção de acidentes de trajeto e de trabalho!
+                            </p>
+                            <button onClick={startGame} className="w-full py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-lg rounded-xl transition-all shadow-[0_0_15px_rgba(8,145,178,0.5)]">
+                                Começar Expediente
+                            </button>
+                        </div>
+                    )}
+
+                    {gameState === 'playing' && (
+                        <div className="w-full max-w-4xl flex flex-col gap-6 items-center animate-fade-in">
+                            <div className="w-full flex justify-between items-center bg-slate-800 px-6 py-4 rounded-2xl border border-slate-700 shadow-lg">
+                                <div className="flex items-center gap-3">
+                                    <ShieldSmallIcon />
+                                    <span className="font-bold text-lg tracking-wider hidden sm:block text-cyan-400">
+                                        SIPAT VIRTUAL - FASE {currentPhase}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <button onClick={startGame} className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-bold text-slate-300 transition-colors">
+                                        <RotateIcon /> <span className="hidden sm:block">Reiniciar</span>
+                                    </button>
+                                    <div className="bg-slate-900 px-4 py-2 rounded-lg font-mono text-xl text-yellow-400 font-bold shadow-inner flex items-center gap-2">
+                                        <span>SCORE:</span> <span>{score}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="relative bg-slate-300 border-8 border-slate-700 rounded-lg shadow-2xl overflow-hidden"
+                                style={{
+                                    width: `${GRID_W * TILE_SIZE}px`, height: `${GRID_H * TILE_SIZE}px`,
+                                    backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)',
+                                    backgroundSize: `${TILE_SIZE}px ${TILE_SIZE}px`
+                                }}>
+                                
+                                {currentPhase === 1 ? PHASE_1_BG : PHASE_2_BG}
+
+                                {obstacles.map((obs, idx) => (
+                                    <div key={`obs-${idx}`} className="absolute bg-slate-600 border border-slate-700 flex items-center justify-center rounded-md"
+                                        style={{ width: `${TILE_SIZE}px`, height: `${TILE_SIZE}px`, left: `${obs.x * TILE_SIZE}px`, top: `${obs.y * TILE_SIZE}px` }}>
+                                        <div className="w-8 h-8 bg-slate-500/50 rounded-sm"></div>
+                                    </div>
+                                ))}
+
+                                {npcs.map(npc => (
+                                    <div key={npc.id} className="absolute flex flex-col items-center justify-center transition-all duration-300"
+                                        style={{ width: `${TILE_SIZE}px`, height: `${TILE_SIZE}px`, left: `${npc.x * TILE_SIZE}px`, top: `${npc.y * TILE_SIZE}px` }}>
+                                        {!npc.completed && npc.quiz && (
+                                            <div className="absolute -top-6 animate-bounce text-yellow-500 bg-slate-900 rounded-full p-1 shadow-lg flex items-center justify-center">
+                                                <MessageIcon />
+                                            </div>
+                                        )}
+                                        <div className={`w-10 h-10 ${npc.bg} ${npc.color} rounded-full flex items-center justify-center shadow-md border-2 border-current z-10`}>
+                                            <npc.icon />
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <div className="absolute flex items-center justify-center transition-all duration-200 ease-out z-20"
+                                    style={{ width: `${TILE_SIZE}px`, height: `${TILE_SIZE}px`, left: `${playerPos.x * TILE_SIZE}px`, top: `${playerPos.y * TILE_SIZE}px` }}>
+                                    <div className="w-10 h-10 bg-cyan-500 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white relative">
+                                        <UserIcon />
+                                        <div className={`absolute w-2 h-2 bg-white rounded-full ${facing === 'up' ? '-top-1' : facing === 'down' ? '-bottom-1' : facing === 'left' ? '-left-1' : '-right-1'}`} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 w-48 mt-4 md:hidden">
+                                <div />
+                                <button onClick={() => movePlayer(0, -1, 'up')} className="bg-slate-700 p-4 rounded-xl flex justify-center active:bg-cyan-600"><ArrowUpIcon /></button>
+                                <div />
+                                <button onClick={() => movePlayer(-1, 0, 'left')} className="bg-slate-700 p-4 rounded-xl flex justify-center active:bg-cyan-600"><ArrowLeftIcon /></button>
+                                <button onClick={() => movePlayer(0, 1, 'down')} className="bg-slate-700 p-4 rounded-xl flex justify-center active:bg-cyan-600"><ArrowDownIcon /></button>
+                                <button onClick={() => movePlayer(1, 0, 'right')} className="bg-slate-700 p-4 rounded-xl flex justify-center active:bg-cyan-600"><ArrowRightIcon /></button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeDialog && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in text-slate-100">
+                            <div className="bg-slate-800 max-w-lg w-full rounded-3xl border border-slate-700 overflow-hidden shadow-2xl">
+                                <div className={`px-6 py-4 flex items-center gap-4 ${activeDialog.bg} border-b border-slate-700/50`}>
+                                    <div className={`w-10 h-10 flex items-center justify-center bg-white/50 rounded-full ${activeDialog.color}`}>
+                                        <activeDialog.icon />
+                                    </div>
+                                    <div>
+                                        <h3 className={`font-bold text-xl ${activeDialog.color}`}>{activeDialog.name}</h3>
+                                        <span className="text-slate-600 text-sm font-semibold">{activeDialog.role}</span>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 space-y-6">
+                                    {!quizResult && (
+                                        <React.Fragment>
+                                            <div className="bg-slate-900/50 p-4 rounded-xl border-l-4 border-slate-500 text-lg text-slate-300 italic">
+                                                "{activeDialog.message}"
+                                            </div>
+                                            {activeDialog.quiz && !activeDialog.completed ? (
+                                                <div className="space-y-4">
+                                                    <p className="font-bold text-cyan-400">{activeDialog.quiz.question}</p>
+                                                    <div className="space-y-2">
+                                                        {activeDialog.quiz.options.map((opt, idx) => (
+                                                            <button key={idx} onClick={() => handleAnswer(opt)} className="w-full text-left p-4 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors text-slate-200 text-sm md:text-base border border-slate-600 hover:border-cyan-400">
+                                                                {opt.text}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="text-center pt-4">
+                                                    <button onClick={closeDialog} className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl font-bold transition-all text-white">
+                                                        {activeDialog.completed ? "Voltar ao trabalho" : "Entendido!"}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </React.Fragment>
+                                    )}
+
+                                    {quizResult && (
+                                        <div className="space-y-6 text-center animate-fade-in-up">
+                                            <div className={`mx-auto w-24 h-24 rounded-full flex items-center justify-center ${quizResult.isCorrect ? 'bg-green-100' : 'bg-red-100'}`}>
+                                                {quizResult.isCorrect ? <CheckIcon /> : <XIcon />}
+                                            </div>
+                                            <h4 className={`text-2xl font-bold ${quizResult.isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                                {quizResult.isCorrect ? "Decisão Segura!" : "Atenção ao Risco!"}
+                                            </h4>
+                                            <p className="text-slate-300 text-lg leading-relaxed bg-slate-900/50 p-4 rounded-xl">
+                                                {quizResult.feedback}
+                                            </p>
+                                            <button onClick={closeDialog} className="w-full py-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold transition-all text-white">
+                                                Continuar a patrulha
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {gameState === 'phase_transition' && (
+                        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+                            <div className="bg-slate-800 p-8 rounded-3xl border-2 border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.3)] max-w-md w-full text-center space-y-6">
+                                {currentPhase === 1 ? (
+                                    <React.Fragment>
+                                        <div className="w-24 h-24 bg-blue-500/20 rounded-full mx-auto flex items-center justify-center border-4 border-blue-500">
+                                            <ArrowRightCircleIcon />
+                                        </div>
+                                        <h2 className="text-3xl font-black text-white">Setor A Concluído!</h2>
+                                        <p className="text-slate-300">Você garantiu a segurança na chegada e na linha de produção. Mas o trabalho não acabou!</p>
+                                        <button onClick={nextPhase} className="w-full py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2">
+                                            Ir para Fase 2 (Almoxarifado)
+                                        </button>
+                                    </React.Fragment>
+                                ) : (
+                                    <React.Fragment>
+                                        <div className="w-24 h-24 bg-yellow-500/20 rounded-full mx-auto flex items-center justify-center border-4 border-yellow-500">
+                                            <TrophyIcon />
+                                        </div>
+                                        <h2 className="text-3xl font-black text-white">Turno Finalizado!</h2>
+                                        <p className="text-slate-300">Missão cumprida! Você orientou todos os colegas em todos os setores e preveniu diversos acidentes hoje. Excelente trabalho!</p>
+                                        <div className="bg-slate-900 rounded-2xl p-6 border border-slate-700">
+                                            <span className="block text-slate-400 text-sm font-bold uppercase mb-1">Pontuação Final</span>
+                                            <span className="text-5xl font-mono font-black text-yellow-400">{score}</span>
+                                        </div>
+                                        <button onClick={startGame} className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white font-bold text-lg rounded-xl transition-all flex items-center justify-center gap-2">
+                                            <RotateIcon /> Iniciar Novo Turno
+                                        </button>
+                                    </React.Fragment>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Renderiza a aplicação
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
